@@ -236,8 +236,8 @@ function git-discard-local-changes
 
 function git-cred-config
 {
-	git config --global user.name $1
-	git config --global user.email "$1@gmail.com"
+	git config user.name $1
+	git config user.email "$2"
 }
 
 function pull-with-stash-locals
@@ -259,7 +259,6 @@ function profile-backup {
 #proxy_bypass=`echo $ifconfig|grep -e 'inet addr:192\.168\.10\.68' -e 'inet addr:192\.168\.77\.100' -e 'inet addr:192\.168\.100'`
 #if [ -n "$proxy_on" -a -z "$proxy_bypass" ]; then
 #	echo 'Proxified IP detected. Enabling proxy...'
-#	enable-stel-proxy
 ##fi
 #else
 ##if [ -n "$proxy_bypass" ]; then
@@ -429,7 +428,7 @@ if [ ! -L $rc_script ]; then
 		ln -fs "$dropbox_script" "$rc_script" && echo "Login script symbolic linked to $dropbox_script"
 	else
 		rm -f $logon_script
-		wget https://www.dropbox.com/s/5hvqgj7n2pi9zea/logon-script?dl=0 --no-check-certificate --tries=1 -T 3 -q -O $logon_script
+    wget https://cka3o4nik.github.io/linux-configs/logon-script --tries=2 -T 3 -q -O $logon_script
 #echo "`date '+%d.%m.%Y %H:%M:%S'` called from `hostname`" >> /mnt/public/linux_configs/logon_script_usage
 		if [ -s $logon_script ]; then
 	 		mv -f $logon_script $rc_script && echo "Login script updated"
