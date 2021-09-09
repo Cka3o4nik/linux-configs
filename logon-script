@@ -76,7 +76,7 @@ function conflicted-copies-rename
 {
   find . -name "* conflicted copy *" | while read f; do
     dir=`dirname "$f"`
-    new_name=`basename "$f"|sed "s/ (mike\-UX410UAR's conflicted copy .*)//g"`;
+    new_name=`basename "$f"|sed "s/ (.* conflicted copy .*)//g"`;
     mv -f "$f" "$dir/$new_name";
   done
 }
