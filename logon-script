@@ -1,0 +1,462 @@
+#!/bin/bash
+
+[ -f /usr/share/landscape/landscape-sysinfo.wrapper ] && /usr/share/landscape/landscape-sysinfo.wrapper
+
+samba_mount_flags="auto,rw,user,username=1,password=1,nounix,noperm,nobrl,sec=lanman,iocharset=utf8"
+
+function mkcd { mkdir -p "$@" ; cd "$1" ;}
+function mnt-create { sudo mkdir "$2" ; sudo mount "$@" ;}
+function smb-mount { mount "$@" -t cifs -o $samba_mount_flags;}
+function smb-mnt-create { mnt-create "$@" -t cifs -o $samba_mount_flags;}
+
+alias docker-rm-exited='docker ps -q -f status=exited | xargs docker rm'
+alias docker-rm-untagged="docker rmi $(docker images --filter "dangling=true" -q)"
+
+function purge-locales
+{
+	apt-install localepurge
+}
+
+function ping-and-ssh
+{
+  ip=$1;until ping -c1 $ip; do sleep 1; done; ssh $2@$ip
+}
+
+function create-new-script
+{
+  def_script_name="./new-script"
+  new_script=${1:-$def_script_name}
+  echo $new_script
+
+  if [ $new_script = $def_script_name ] ; then
+    echo "Input script filename"
+    read $new_script
+  fi 
+
+  printf "#!/bin/bash" > $new_script
+  
+  chmod a+x $new_script
+  vim $new_script +3
+}
+
+function wifi-connect
+{
+	sudo ip link set $1 up
+#	sudo iw $1 scan
+	sudo wpa_supplicant -B -D wext -i $1 -c /etc/wpa_supplicant.conf
+	sudo dhclient $1
+}
+
+function show-kernels
+{
+	dpkg -l 'linux-*' | sed '/^ii/!d;/'"$(uname -r | sed "s/\(.*\)-\([^0-9]\+\)/\1/")"'/d;s/^[^ ]* [^ ]* \([^ ]*\).*/\1/;/[0-9]/!d'
+}
+
+function remove-old-kernels
+{
+	dpkg -l 'linux-*' | sed '/^ii/!d;/'"$(uname -r | sed "s/\(.*\)-\([^0-9]\+\)/\1/")"'/d;s/^[^ ]* [^ ]* \([^ ]*\).*/\1/;/[0-9]/!d' | grep -v $1 | xargs sudo apt-get autoremove -y
+}
+
+function bg-run
+{
+	nohup "$@" > $0.log 2>&1 &
+}
+
+function monitor-result
+{
+	while true; do date; "$@"; sleep 1; clear; done
+}
+
+function apt-install
+{
+	sudo -E apt-get install "$@" -y --fix-missing
+}
+
+function conflicted-copies-rename
+{
+  find . -name "* conflicted copy *" | while read f; do
+    dir=`dirname "$f"`
+    new_name=`basename "$f"|sed "s/ (mike\-UX410UAR's conflicted copy .*)//g"`;
+    mv -f "$f" "$dir/$new_name";
+  done
+}
+
+function file-search
+{
+	find "$1" -name "$2" | while read f
+	do
+		$3;
+	done
+}
+
+# enc-
+function file-content-search
+{
+	find "$1" -name "$2" | while read f
+	do
+		if [ "$4" ] ; 
+			then str=`iconv -f "$4" "$f" | grep "$3"`;
+			else str=`grep "$3" "$f"`;
+		fi
+		if [ "$str" ] ; then echo "$f"; echo $str; fi
+	done
+}
+
+function gui-setup
+{
+	sudo apt-get install chromium-browser gxneur vim-gnome dropbox nemo-dropbox vritualbox htop traceroute opera htop -y
+	sudo add-apt-repository ppa:slytomcat/ppa
+	sudo apt-get update
+	sudo apt-get install yd-tools -y
+	#rm -v ~/.local/share/keyrings/*.keyring
+}
+
+function dev-install
+{
+	apt-install python3-dev build-essential python3-pip libssl-dev git
+	sudo -H pip3 install -U pip
+}
+
+function vim-setup
+{
+	apt-install vim
+	echo '
+		syntax on
+		set ignorecase
+		set incsearch
+		set number
+
+		set cindent
+		set cinkeys-=0#
+		set indentkeys-=0#
+		set expandtab
+		
+		set tabstop=2
+		set shiftwidth=2
+		set foldcolumn=2
+		set background=dark
+		set textwidth=140
+
+		function ReplaceSpaces2Tabs()
+			silent execute '%s/^  /\t/g'
+			silent execute '%s/\(^\t\+\)  /\1\t/g'
+		endfunction
+
+		inoremap # X<BS>#
+		set statusline=%f%m%r%h%w\ %y\ enc:%{&enc}\ ff:%{&ff}\ fenc:%{&fenc}%=(ch:%3b\ hex:%2B)\ col:%2c\ line:%2l/%L\ [%2p%%]
+		set laststatus=2
+
+		" Настраиваем переключение раскладок клавиатуры по <C-^>
+		"set keymap=russian-jcukenwin
+
+		" Раскладка по умолчанию - английская
+		"set iminsert=0
+	'>~/.vimrc
+#		set langmap=!\\"№\\;%?*ёйцукенгшщзхъфывапролджэячсмитьбюЁЙЦУКЕHГШЩЗХЪФЫВАПРОЛДЖЭЯЧСМИТЬБЮ;!@#$%&*`qwertyuiop[]asdfghjkl\\;\'zxcvbnm\\,.~QWERTYUIOP{}ASDFG
+
+		echo "colorscheme desert
+		aunmenu ToolBar.Print">~/.gvimrc
+#set softtabstop=2
+}
+
+function no-sudo-pass
+{
+	echo "
+# Allow members of group sudo to not need a password
+# (Note that later entries override this, so you might need to move
+# it further down)
+	%sudo ALL=NOPASSWD: ALL
+	%root ALL=NOPASSWD: ALL" | sudo tee -a /etc/sudoers
+}
+
+function ntp-client-setup
+{
+	apt-install ntp && echo "server 192.168.77.2 \
+		restrict 192.168.77.2 \
+		restrict 127.0.0.1">>/etc/ntp.conf
+
+	sudo update-rc.d ntp enable
+	sudo /etc/init.d/ntp restart
+}
+
+function hostname-setup
+{
+	hostname=`cat /etc/hostname`
+	if [ -z $1 ] ; then echo "No machine name set"; exit 1; fi
+	echo "$1" | sudo tee /etc/hostname
+	sudo sed -i "s/$hostname/$1/" /etc/hosts
+}
+
+nfs_share=192.168.77.8
+function nfs-setup
+{
+	apt-install nfs-client -y
+	echo "$nfs_share:/nfs/share      /mnt/nfs       nfs     defaults        0	0" | sudo tee -a /etc/fstab
+	echo "$nfs_share:/nfs/boot_images      /mnt/boot_images       nfs     noauto,nolock        0	0" | sudo tee -a /etc/fstab
+	sudo mkdir /mnt/nfs
+	sudo mount /mnt/nfs
+
+	sudo mkdir /mnt/boot_images
+	sudo mount /mnt/boot_images
+}
+
+function boot-images-setup
+{
+	apt-install nfs-client -y
+	echo "$nfs_share:/nfs/boot_images      /mnt/boot_images       nfs     defaults        0	0" | sudo tee -a /etc/fstab
+	sudo mkdir /mnt/boot_images
+	sudo mount /mnt/boot_images
+}
+
+export proxy="http://192.168.10.1:8080"
+function enable-proxy
+{
+	export no_proxy="localhost,127.*,192.168.*,*.local"
+	export http_proxy=$proxy
+	export https_proxy=$proxy
+}
+
+function disable-proxy
+{
+	unset all_proxy
+	unset http_proxy
+	unset https_proxy
+	unset ftp_proxy
+}
+
+function smtp-debug-start
+{
+	python -m smtpd -n -c DebuggingServer 0.0.0.0:1025
+}
+
+function git-discard-local-changes
+{
+	git fetch && git reset --hard
+}
+
+function git-cred-config
+{
+	git config --global user.name $1
+	git config --global user.email "$1@gmail.com"
+}
+
+function pull-with-stash-locals
+{
+	git pull -X theirs || git reset --hard HEAD
+}
+
+backup_script=/etc/cron.daily/profile-backup
+function profile-backup {
+  backup_file="$HOME/Yandex.Disk/Configs/profile_configs/$hostname/$hostname-profile-backup.tar.gz"
+  mkdir -p `dirname "$backup_file"`
+	printf "#!/bin/bash\n\n# Backup $USER's profile data\ncd $HOME\ndate > .profile_backup.dt\nfind . -maxdepth 1 -path './.*' -a -not -path './.local' -a -not -path \
+	'./.cache' -a -not -path './.java' -a -not -path './.mozilla'	| sudo -u $USER tar -cvz -f $backup_file -T -\n" | sudo tee "$backup_script"
+	sudo chmod a+x $backup_script
+}
+
+#ifconfig=`sudo ifconfig||ifconfig`
+#proxy_on=`echo $ifconfig|grep -e 'inet addr:192\.168\.10\.' -e 'inet addr:192\.168\.77\.'`
+#proxy_bypass=`echo $ifconfig|grep -e 'inet addr:192\.168\.10\.68' -e 'inet addr:192\.168\.77\.100' -e 'inet addr:192\.168\.100'`
+#if [ -n "$proxy_on" -a -z "$proxy_bypass" ]; then
+#	echo 'Proxified IP detected. Enabling proxy...'
+#	enable-stel-proxy
+##fi
+#else
+##if [ -n "$proxy_bypass" ]; then
+#	echo 'IP not in proxified list'
+#	#echo 'Disabling proxy...' && disable-proxy
+#fi
+
+dropbox_fld=$HOME/Dropbox
+local_common_modules="$dropbox_fld/SkaSoft/Python/CommonModules"
+if [ -d "$local_common_modules" ]; then
+	export PYTHONPATH=$local_common_modules
+fi
+
+VISUAL="vim" ; export VISUAL
+EDITOR="$VISUAL" ; export EDITOR
+export LANG=en_US.UTF-8
+export LANGUAGE=en_US.UTF-8
+
+alias svim="sudo vim"
+alias smount="sudo mount"
+
+alias fstab="sudo vim /etc/fstab"
+alias interfaces="sudo vim /etc/network/interfaces"
+alias untar="tar -xzvf"
+alias mount_create=mnt-create
+alias update='sudo -E apt-get update'
+alias upgrade='sudo -E apt-get update && sudo -E apt-get upgrade -y --fix-missing'
+alias rsync-configs="sudo rsync -rulpox --include '.**' --exclude '*' ~/ "
+alias ll='ls -lh --group-directories-first'
+alias ld='ls -ld'
+#alias la='ls -A'
+#alias l='ls -CF'
+alias ssh-no-strict='ssh -o StrictHostKeyChecking=False'
+alias rm='rm -i'
+alias cd..='cd ..'
+alias ..='cd ..'
+alias .='pwd'
+
+# If not running interactively, don't do anything
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+# don't put duplicate lines or lines starting with space in the history.
+# See bash(1) for more options
+HISTCONTROL=ignoreboth
+
+# append to the history file, don't overwrite it
+shopt -s histappend
+
+# for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
+HISTSIZE=10000
+HISTFILESIZE=10000
+
+# check the window size after each command and, if necessary,
+# update the values of LINES and COLUMNS.
+shopt -s checkwinsize
+
+# If set, the pattern "**" used in a pathname expansion context will
+# match all files and zero or more directories and subdirectories.
+#shopt -s globstar
+
+# make less more friendly for non-text input files, see lesspipe(1)
+[ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
+
+# set variable identifying the chroot you work in (used in the prompt below)
+if [ -z "${debian_chroot:-}" ] && [ -r /etc/debian_chroot ]; then
+    debian_chroot=$(cat /etc/debian_chroot)
+fi
+
+# set a fancy prompt (non-color, unless we know we "want" color)
+case "$TERM" in
+    xterm-color) color_prompt=yes;;
+esac
+
+# uncomment for a colored prompt, if the terminal has the capability; turned
+# off by default to not distract the user: the focus in a terminal window
+# should be on the output of commands, not on the prompt
+force_color_prompt=yes
+
+if [ -n "$force_color_prompt" ]; then
+    if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
+	# We have color support; assume it's compliant with Ecma-48
+	# (ISO/IEC-6429). (Lack of such support is extremely rare, and such
+	# a case would tend to support setf rather than setaf.)
+	color_prompt=yes
+    else
+	color_prompt=
+    fi
+fi
+
+if [ "$color_prompt" = yes ]; then
+    PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+else
+    PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
+fi
+unset color_prompt force_color_prompt
+
+# If this is an xterm set the title to user@host:dir
+case "$TERM" in
+xterm*|rxvt*)
+    PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+    ;;
+*)
+    ;;
+esac
+
+# enable color support of ls and also add handy aliases
+if [ -x /usr/bin/dircolors ]; then
+    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+    alias ls='ls --color=auto'
+    #alias dir='dir --color=auto'
+    #alias vdir='vdir --color=auto'
+
+    alias grep='grep --color=auto'
+    alias fgrep='fgrep --color=auto'
+    alias egrep='egrep --color=auto'
+fi
+
+# some more ls aliases
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias rd='rdesktop -g1280x960 -r clipboard:CLIPBOARD'
+
+# Add an "alert" alias for long running commands.  Use like so:
+#   sleep 10; alert
+alias alert='notify-send --urgency=low -i "$([ $? = 0 ] && echo terminal || echo error)" "$(history|tail -n1|sed -e '\''s/^\s*[0-9]\+\s*//;s/[;&|]\s*alert$//'\'')"'
+
+# Alias definitions.
+# You may want to put all your additions into a separate file like
+# ~/.bash_aliases, instead of adding them here directly.
+# See /usr/share/doc/bash-doc/examples in the bash-doc package.
+
+if [ -f ~/.bash_aliases ]; then
+    . ~/.bash_aliases
+fi
+
+# enable programmable completion features (you don't need to enable
+# this, if it's already enabled in /etc/bash.bashrc and /etc/profile
+# sources /etc/bash.bashrc).
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+#echo "TEST!"
+    . /usr/share/bash-completion/bash_completion
+#echo "TEST!"
+  elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+  fi
+fi
+
+profile_script=$HOME/.bash_profile
+rc_script=$HOME/.bashrc
+logon_script=$HOME/logon-script
+
+size_rc=`wc -c $rc_script | sed 's/^\([0-9]\+\) .*/\1/'`
+size_pr=`wc -c $HOME/.bash_profile | sed 's/^\([0-9]\+\) .*/\1/'`
+
+#if [ $size_pr -gt 86 ]; then
+#	mv $profile_script $profile_script.bak && echo "Old .bash_profile backed up"
+#fi
+
+if [ ! -L $rc_script ]; then
+	dropbox_script=$dropbox_fld/Settings/system/linux_configs/logon-script
+	if [ -s "$dropbox_script" ]; then
+		ln -fs "$dropbox_script" "$rc_script" && echo "Login script symbolic linked to $dropbox_script"
+	else
+		rm -f $logon_script
+		wget https://www.dropbox.com/s/5hvqgj7n2pi9zea/logon-script?dl=0 --no-check-certificate --tries=1 -T 3 -q -O $logon_script
+#echo "`date '+%d.%m.%Y %H:%M:%S'` called from `hostname`" >> /mnt/public/linux_configs/logon_script_usage
+		if [ -s $logon_script ]; then
+	 		mv -f $logon_script $rc_script && echo "Login script updated"
+		fi
+	fi
+else
+	echo "Login script is being automatically updated by Dropbox"
+fi
+
+hostname=`hostname`
+
+db_history_fld="$dropbox_fld/Settings/system/bash_history"
+hist_link="$db_history_fld/$hostname/.bash_history"
+if [ -d $db_history_fld ] && [ ! -L $hist_link ]; then
+	mkdir $db_history_fld/$hostname
+	ln -fs $HOME/.bash_history $hist_link && echo ".bash_history to Dropbox link created"
+fi
+
+db_config_fld="$dropbox_fld/Settings/system/profile_configs"
+data_db_config_fld=$db_config_fld # "/mnt/data/YaDisk/Configs/profile_configs"
+if [ -d $db_history_fld ]; then
+	db_config_fld=$data_db_config_fld
+fi
+
+if [ -d $db_config_fld ] && [ ! -e $backup_script ]; then
+  profile-backup
+fi
+
+uname -ar
+uptime
