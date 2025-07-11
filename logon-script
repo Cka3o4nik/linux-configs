@@ -428,7 +428,7 @@ if [ ! -L $rc_script ]; then
 		ln -fs "$dropbox_script" "$rc_script" && echo "Login script symbolic linked to $dropbox_script"
 	else
 		rm -f $logon_script
-    wget https://cka3o4nik.github.io/linux-configs/logon-script --tries=2 -T 3 -q -O $logon_script
+    		wget https://cka3o4nik.github.io/linux-configs/logon-script --tries=2 -T 3 -q -O $logon_script
 #echo "`date '+%d.%m.%Y %H:%M:%S'` called from `hostname`" >> /mnt/public/linux_configs/logon_script_usage
 		if [ -s $logon_script ]; then
 	 		mv -f $logon_script $rc_script && echo "Login script updated"
