@@ -136,7 +136,7 @@ set shiftwidth=2
 set foldcolumn=2
 set background=dark
 set textwidth=140
-set buftype=nowrite
+set buftype=quickfix
 
 function ReplaceSpaces2Tabs()
 	silent execute '%s/^  /\t/g'
