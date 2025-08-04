@@ -136,7 +136,9 @@ set shiftwidth=2
 set foldcolumn=2
 set background=dark
 set textwidth=140
-set buftype=quickfix
+
+set autoread
+autocmd FocusGained,BufEnter * checktime
 
 function ReplaceSpaces2Tabs()
 	silent execute '%s/^  /\t/g'
