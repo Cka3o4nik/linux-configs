@@ -23,6 +23,7 @@ function FindProxyForURL(url, host) {
   || shExpMatch(host, "*.facebook.com")  || shExpMatch(host, "*.fbcdn.net")
   || shExpMatch(host, "openai.com") || shExpMatch(host, "*.openai.com")
   || shExpMatch(host, "*.zadarma.com") || shExpMatch(host, "zadarma.com")
+  || shExpMatch(host, "notebooklm.google")
   ) {
     return "PROXY 127.0.0.1:8080";
   }
