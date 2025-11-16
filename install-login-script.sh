@@ -4,9 +4,6 @@
 user=mike
 home=/home/$user
 
-sudo adduser $user
-sudo usermod -aG root,adm $user
-
 # install logon script
 profile_script=$HOME/.bash_profile
 rc_script=$HOME/.bashrc
@@ -27,4 +24,3 @@ if [ -s $logon_script ]; then
     mv -f $logon_script $rc_script && echo "Login script updated"
 fi  
 printf "#!/bin/bash\n\n. $rc_script\n" >> $profile_script
-# wget https://www.dropbox.com/s/rw5xxzqi2otqned/logon-script?dl=0 --tries=3 --no-check-certificate -T 3 -O $HOME/.bashrc
