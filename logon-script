@@ -268,8 +268,8 @@ function profile-backup {
 #	#echo 'Disabling proxy...' && disable-proxy
 #fi
 
-dropbox_fld=$HOME/Dropbox
-local_common_modules="$dropbox_fld/SkaSoft/Python/CommonModules"
+soft_folder=$HOME/soft
+local_common_modules="$soft_folder/CommonModules"
 if [ -d "$local_common_modules" ]; then
 	export PYTHONPATH=$local_common_modules
 fi
@@ -425,12 +425,12 @@ size_pr=`wc -c $HOME/.bash_profile | sed 's/^\([0-9]\+\) .*/\1/'`
 #fi
 
 if [ ! -L $rc_script ]; then
-	dropbox_script=$dropbox_fld/Settings/system/linux_configs/logon-script
+	dropbox_script=$soft_folder/linux_configs/logon-script
 	if [ -s "$dropbox_script" ]; then
 		ln -fs "$dropbox_script" "$rc_script" && echo "Login script symbolic linked to $dropbox_script"
 	else
 		rm -f $logon_script
-    		wget https://cka3o4nik.github.io/linux-configs/logon-script --tries=2 -T 3 -q -O $logon_script
+    		wget https://raw.githubusercontent.com/mif-power/linux-configs/refs/heads/master/logon-script --tries=2 -T 3 -q -O $logon_script
 #echo "`date '+%d.%m.%Y %H:%M:%S'` called from `hostname`" >> /mnt/public/linux_configs/logon_script_usage
 		if [ -s $logon_script ]; then
 	 		mv -f $logon_script $rc_script && echo "Login script updated"
@@ -442,18 +442,8 @@ fi
 
 hostname=`hostname`
 
-db_history_fld="$dropbox_fld/Settings/system/bash_history"
-hist_link="$db_history_fld/$hostname/.bash_history"
-if [ -d $db_history_fld ] && [ ! -L $hist_link ]; then
-	mkdir $db_history_fld/$hostname
-	ln -fs $HOME/.bash_history $hist_link && echo ".bash_history to Dropbox link created"
-fi
-
-db_config_fld="$dropbox_fld/Settings/system/profile_configs"
-data_db_config_fld=$db_config_fld # "/mnt/data/YaDisk/Configs/profile_configs"
-if [ -d $db_history_fld ]; then
-	db_config_fld=$data_db_config_fld
-fi
+db_config_fld="$soft_folder/system_settings/profile_configs"
+data_db_config_fld=$db_config_fld
 
 if [ -d $db_config_fld ] && [ ! -e $backup_script ]; then
   profile-backup

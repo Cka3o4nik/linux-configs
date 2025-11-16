@@ -17,7 +17,7 @@ mv $profile_script $profile_script.original && echo "Old .bash_profile backed up
 printf "#!/bin/bash\n\n. $rc_script\n" > $profile_script
 #download=`
 #$download
-wget https://www.dropbox.com/s/rw5xxzqi2otqned/logon-script?dl=0 --tries=3 --no-check-certificate -T 3 -O $logon_script
+wget https://raw.githubusercontent.com/mif-power/linux-configs/refs/heads/master/logon-script --tries=3 --no-check-certificate -T 3 -O $logon_script
 
 if [ -s $logon_script ]; then
     if [ $size_rc -gt 34 ]; then
