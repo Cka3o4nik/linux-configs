@@ -25,7 +25,7 @@ function FindProxyForURL(url, host) {
   || shExpMatch(host, "*.zadarma.com") || shExpMatch(host, "zadarma.com")
   || shExpMatch(host, "notebooklm.google")
   ) {
-    return "PROXY 127.0.0.1:8080";
+    return "SOCKS 127.0.0.1:8080";
   }
 
   // All other requests go through port 8080 of proxy.example.com.
