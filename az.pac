@@ -24,6 +24,9 @@ function FindProxyForURL(url, host) {
   || shExpMatch(host, "openai.com") || shExpMatch(host, "*.openai.com")
   || shExpMatch(host, "*.zadarma.com") || shExpMatch(host, "zadarma.com")
   || shExpMatch(host, "notebooklm.google") || shExpMatch(host, "*.tiktok.com")
+  || shExpMatch(host, "*.v2fly.org") || shExpMatch(host, "hiddify.com")
+  || shExpMatch(host, "v2ray.com") || shExpMatch(host, "*.v2ray.com")
+  || shExpMatch(host, "n8n.io")
   ) {
     return "SOCKS 127.0.0.1:8080";
   }
